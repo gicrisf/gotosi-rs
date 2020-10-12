@@ -4,7 +4,7 @@ extern crate gio;
 use gtk::prelude::*;
 use gio::prelude::*;
 
-use gtk::{ApplicationWindow, Builder, Button};
+use gtk::{ApplicationWindow, Builder, Button, Label, ListStore, TreeView, TreeViewColumn, CellRendererText};
 
 use std::env::args;
 use std::collections::HashMap;
@@ -18,37 +18,77 @@ extern crate serde_derive;
 use serde_json::Error;
 
 #[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone)]
 struct Isotope {  // Example: Hydrogen
     atomic_number: String,  // "1"
     symbol: String,  // "H"
     mass_number: String,  // "1"
     relative_atomic_mass: String,  // "1.00782503223(9)"
-    isotopic_composition: String,  // "0.999885(70)"
+    isotopic_composition: Option<String>,  // "0.999885(70)"
     standard_atomic_weight: String,  // "[1.00784,1.00811]"
-    notes: String,  // "m"
+    // notes: String,  // "m"
 }
 
-// Serde
-fn get_data() -> Result<(), Error> {
-    let data = include_str!("all_isotopes.min.json");
+#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone)]
+struct Spin {
+    Nucleus: String,
+    Elevel: String,  // "Elevel(keV)"
+    Spin: String,
+    T: String,  // "T1/2"
+}
 
-    //let v: Vec<Foo> = serde_json::from_str(data)?;
+// DATA
+// You can make it with one function if you use generics!
+fn get_data_isotope() -> Result<Vec<Isotope>, Error> {
+    let data = include_str!("common_isotopes.min.json");
     let v: Vec<Isotope> = serde_json::from_str(data)?;
-
-    for elem in v.iter() {
-        println!("{:?}", elem);
-    }
-    Ok(())
+    Ok(v)
 }
 
-// Funzioni ausiliarie
+fn get_data_spin() -> Result<Vec<Spin>, Error> {
+    let data = include_str!("spins.json");
+    let v: Vec<Spin> = serde_json::from_str(data)?;
+    Ok(v)
+}
+
+// TREEVIEW
+fn create_and_fill_model(isos: &Vec<Isotope>) -> ListStore {
+    // Creation of a model with two rows.
+    let model = ListStore::new(&[String::static_type(); 4]);
+    for iso in isos.iter() {
+        model.insert_with_values(None, &[0, 1, 2, 3], &[
+                &iso.mass_number,
+                &iso.relative_atomic_mass,
+                &iso.isotopic_composition,
+                &iso.standard_atomic_weight,
+            ]);
+    }
+
+    model
+}
+
+fn append_column(tree: &TreeView, id: i32, title: &str) {
+    let column = TreeViewColumn::new();
+    let cell = CellRendererText::new();
+
+    column.pack_start(&cell, true);
+    column.set_min_width(100);
+    column.set_resizable(true);
+    column.set_title(title);
+
+    // Association of the view's column with the model's `id` column.
+    column.add_attribute(&cell, "text", id);
+    tree.append_column(&column);
+}
+
 fn get_button(symbol: &str, builder: &Builder) -> Button {
     builder
         .get_object(&["button_", symbol].join(""))  // Is there a more elegant way?
         .expect(&["Cannot find ", symbol].join(""))
 }
 
-fn get_button_map(builder: &Builder) -> HashMap<&str, Button> {
+fn get_button_map(builder: &Builder) -> HashMap<String, Button> {
     let elements: [&str; 118] = [
         "H", "Li", "Na", "K", "Rb", "Cs", "Fr",
         "Be", "Mg", "Ca", "Sr", "Ba", "Ra",
@@ -72,22 +112,54 @@ fn get_button_map(builder: &Builder) -> HashMap<&str, Button> {
         "He", "Ne", "Ar", "Kr", "Xe", "Rn", "Og",
     ];
 
-    let mut button_map: HashMap<&str, Button> = HashMap::with_capacity(118);
+    let mut button_map: HashMap<String, Button> = HashMap::with_capacity(118);
 
     for el in elements.iter() {
-        button_map.insert(el, get_button(el, builder));
+        button_map.insert(el.to_string(), get_button(el, builder));
     };
 
     button_map
 }
 
-// fn display_el() {}
+fn get_isotopes(symbol: &str, data: &Result<Vec<Isotope>, Error>) -> Vec<Isotope> {
+    let mut isotopes: Vec<Isotope> = Vec::new();
 
-// GUI
+    for i in data.as_ref().unwrap().iter() {
+        if i.symbol == symbol {
+            isotopes.push(i.clone());
+        }
+    }
+    isotopes
+}
+
+fn get_spins(
+    symbol: &str,
+    isos: &Result<Vec<Isotope>, Error>,
+    data: &Result<Vec<Spin>, Error>) -> Vec<Spin>
+    {
+    // Get mass numbers
+    let queries: Vec<String> = Vec::new();
+    let upper_sym: String = String::from(symbol).to_ascii_uppercase();
+
+    for iso in isos.iter() {
+        let query = [&upper_sym, &iso.mass_number].join("");
+        queries.push(query);
+    }
+
+    // Get spin data
+    let mut spins: Vec<Spin> = Vec::new();
+
+    for i in data.as_ref().unwrap().iter() {
+        if i.Nucleus == &query {
+            spins.push(i.clone());
+        }
+    }
+    spins
+}
 
 fn build_ui(application: &gtk::Application) {
-    let _foo: Result<(), Error> = serde::export::Ok(get_data().unwrap());
-
+    let isotopes_data: Result<Vec<Isotope>, Error> = serde::export::Ok(get_data_isotope().unwrap());
+    let spin_data: Result<Vec<Spin>, Error> = serde::export::Ok(get_data_spin().unwrap());
     let builder = Builder::from_string(include_str!("gelements.glade"));
 
     // Widgets
@@ -99,18 +171,52 @@ fn build_ui(application: &gtk::Application) {
     win.set_title("gElements");
     win.set_application(Some(application));
 
-    // Collect element buttons in HashMap
-    let button_map: HashMap<&str, Button> = get_button_map(&builder);
+    // Static UI elements
+    let label_symbol: Label = builder.get_object("label_symbol")
+        .expect("Cannot find label");
+    let label_atomic_number: Label = builder.get_object("label_atomic_number")
+        .expect("Cannot find label_atomic_number");
 
-    // Associate a func to the buttons
-    for btn in button_map.values() {
-        // Clone vars to pass them in here:
+    // Build Tree
+    let treeview: TreeView = builder.get_object("treeview").expect("Cannot find treeview");
+
+    // From isotope data
+    append_column(&treeview, 0, "Mass Number");
+    append_column(&treeview, 1, "% Rel. Atomic Mass");
+    append_column(&treeview, 2, "Isotopic Composition");
+    append_column(&treeview, 3, "Std. Atomic Weight");
+    // From spin data
+    append_column(&treeview, 4, "Nuclear Spin");
+    append_column(&treeview, 5, "T_1/2");
+    append_column(&treeview, 6, "Elevel");
+
+    treeview.set_headers_visible(true);
+
+    // Collect element buttons in HashMap
+    let button_map: HashMap<String, Button> = get_button_map(&builder);
+
+    for (symbol, btn) in button_map {
+        // Get relative isotopes
+        let isos: Vec<Isotope> = get_isotopes(&symbol, &isotopes_data);
+        let spins: Vec<Spin> = get_spins(&symbol, &isos, &spin_data);
+
+        // Clone vars to pass them in connect_clicked:
         // https://gtk-rs.org/docs-src/tutorial/closures
-        btn.connect_clicked(move |btn| {
-            println!{"{}", btn.get_label().unwrap()};  // Can return the `el`
+        let lbl = label_symbol.clone();  // Symbol lbl
+        let lbl_an = label_atomic_number.clone();  // Atomic Number lbl
+        let tree = treeview.clone();
+
+        // On clicked button
+        btn.connect_clicked(move |_| {
+            // Change labels
+            lbl.set_text(&symbol);
+            lbl_an.set_text(&isos[0].atomic_number);
+
+            // Change treeview
+            let model = create_and_fill_model(&isos);
+            tree.set_model(Some(&model));
         });
     }
-
 
     // Make all the widgets within the UI visible.
     win.show_all();
