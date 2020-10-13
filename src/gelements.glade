@@ -11,16 +11,20 @@
       <object class="GtkFixed">
         <property name="visible">True</property>
         <property name="can_focus">False</property>
+        <property name="margin_left">10</property>
+        <property name="margin_right">10</property>
+        <property name="margin_top">10</property>
+        <property name="margin_bottom">10</property>
         <child>
           <object class="GtkGrid" id="grid_table">
             <property name="width_request">100</property>
             <property name="height_request">80</property>
             <property name="visible">True</property>
             <property name="can_focus">False</property>
-            <property name="margin_left">10</property>
-            <property name="margin_right">10</property>
-            <property name="margin_top">10</property>
-            <property name="margin_bottom">10</property>
+            <property name="margin_left">25</property>
+            <property name="margin_right">25</property>
+            <property name="margin_top">25</property>
+            <property name="margin_bottom">25</property>
             <property name="hexpand">True</property>
             <property name="row_spacing">5</property>
             <property name="column_spacing">5</property>
@@ -1610,6 +1614,10 @@
             <property name="height_request">80</property>
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="margin_left">10</property>
+            <property name="margin_right">10</property>
+            <property name="margin_top">10</property>
+            <property name="margin_bottom">10</property>
             <property name="label" translatable="yes">H</property>
             <attributes>
               <attribute name="scale" value="100"/>
@@ -1617,7 +1625,6 @@
             </attributes>
           </object>
           <packing>
-            <property name="x">60</property>
             <property name="y">60</property>
           </packing>
         </child>
@@ -1627,29 +1634,33 @@
             <property name="height_request">80</property>
             <property name="visible">True</property>
             <property name="can_focus">False</property>
+            <property name="margin_left">10</property>
+            <property name="margin_right">10</property>
+            <property name="margin_top">10</property>
+            <property name="margin_bottom">10</property>
             <property name="label" translatable="yes">1</property>
             <attributes>
               <attribute name="weight" value="ultrabold"/>
             </attributes>
           </object>
           <packing>
-            <property name="x">60</property>
             <property name="y">20</property>
           </packing>
         </child>
         <child>
           <object class="GtkTreeView" id="treeview">
-            <property name="width_request">100</property>
-            <property name="height_request">80</property>
             <property name="visible">True</property>
             <property name="can_focus">True</property>
+            <property name="margin_left">5</property>
+            <property name="margin_right">5</property>
+            <property name="margin_top">5</property>
+            <property name="margin_bottom">5</property>
             <child internal-child="selection">
               <object class="GtkTreeSelection"/>
             </child>
           </object>
           <packing>
-            <property name="x">350</property>
-            <property name="y">20</property>
+            <property name="x">160</property>
           </packing>
         </child>
       </object>

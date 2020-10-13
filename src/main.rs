@@ -32,10 +32,10 @@ struct Isotope {  // Example: Hydrogen
 #[derive(Serialize, Deserialize, Debug)]
 #[derive(Clone)]
 struct Spin {
-    Nucleus: String,
-    Elevel: String,  // "Elevel(keV)"
-    Spin: String,
-    T: String,  // "T1/2"
+    nucleus: String,
+    elevel: String,  // "Elevel(keV)"
+    spin: String,
+    thalf: String,  // "T1/2"
 }
 
 // DATA
@@ -53,15 +53,18 @@ fn get_data_spin() -> Result<Vec<Spin>, Error> {
 }
 
 // TREEVIEW
-fn create_and_fill_model(isos: &Vec<Isotope>) -> ListStore {
+fn create_and_fill_model(isos: &Vec<Isotope>, spins: &Vec<Spin>) -> ListStore {
     // Creation of a model with two rows.
-    let model = ListStore::new(&[String::static_type(); 4]);
-    for iso in isos.iter() {
-        model.insert_with_values(None, &[0, 1, 2, 3], &[
+    let model = ListStore::new(&[String::static_type(); 6]);
+    for (idx, iso) in isos.iter().enumerate() {
+        model.insert_with_values(None, &[0, 1, 2, 3, 4, 5], &[
                 &iso.mass_number,
                 &iso.relative_atomic_mass,
                 &iso.isotopic_composition,
                 &iso.standard_atomic_weight,
+                &spins[idx].spin,
+                &spins[idx].thalf,
+                // &spins[idx].elevel,
             ]);
     }
 
@@ -121,41 +124,53 @@ fn get_button_map(builder: &Builder) -> HashMap<String, Button> {
     button_map
 }
 
-fn get_isotopes(symbol: &str, data: &Result<Vec<Isotope>, Error>) -> Vec<Isotope> {
-    let mut isotopes: Vec<Isotope> = Vec::new();
+fn get_isotopes(
+    symbol: &str,
+    data: &Result<Vec<Isotope>, Error>) -> Vec<Isotope> {
+        let mut isotopes: Vec<Isotope> = Vec::new();
 
-    for i in data.as_ref().unwrap().iter() {
-        if i.symbol == symbol {
-            isotopes.push(i.clone());
+        for i in data.as_ref().unwrap().iter() {
+            if i.symbol == symbol {
+                isotopes.push(i.clone());
+            }
         }
-    }
-    isotopes
+        isotopes
 }
 
 fn get_spins(
     symbol: &str,
-    isos: &Result<Vec<Isotope>, Error>,
-    data: &Result<Vec<Spin>, Error>) -> Vec<Spin>
+    my_isos: &Vec<Isotope>,
+    spin_data: &Result<Vec<Spin>, Error>) -> Vec<Spin>
     {
-    // Get mass numbers
-    let queries: Vec<String> = Vec::new();
-    let upper_sym: String = String::from(symbol).to_ascii_uppercase();
 
-    for iso in isos.iter() {
-        let query = [&upper_sym, &iso.mass_number].join("");
-        queries.push(query);
-    }
+        let mut spins: Vec<Spin> = Vec::new();
+        // Get mass numbers
+        for iso in my_isos.iter() {
+            let my_nucleus: String = [iso.mass_number.clone(), symbol.to_ascii_uppercase()].join("");
+            let mut found = false;
 
-    // Get spin data
-    let mut spins: Vec<Spin> = Vec::new();
+            for i in spin_data.as_ref().unwrap().iter() {
+                if i.nucleus == my_nucleus {
+                    found = true;
+                    spins.push(i.clone());
+                    break;
+                }
+            }
 
-    for i in data.as_ref().unwrap().iter() {
-        if i.Nucleus == &query {
-            spins.push(i.clone());
+            if !found {
+                let void_spin = Spin {
+                    nucleus: String::from("/"),
+                    elevel: String::from("/"),  // "Elevel(keV)"
+                    spin: String::from("/"),
+                    thalf: String::from("/"),
+                };
+
+                spins.push(void_spin);
+            }
         }
+
+        spins
     }
-    spins
-}
 
 fn build_ui(application: &gtk::Application) {
     let isotopes_data: Result<Vec<Isotope>, Error> = serde::export::Ok(get_data_isotope().unwrap());
@@ -188,7 +203,7 @@ fn build_ui(application: &gtk::Application) {
     // From spin data
     append_column(&treeview, 4, "Nuclear Spin");
     append_column(&treeview, 5, "T_1/2");
-    append_column(&treeview, 6, "Elevel");
+    // append_column(&treeview, 6, "Elevel");
 
     treeview.set_headers_visible(true);
 
@@ -213,7 +228,7 @@ fn build_ui(application: &gtk::Application) {
             lbl_an.set_text(&isos[0].atomic_number);
 
             // Change treeview
-            let model = create_and_fill_model(&isos);
+            let model = create_and_fill_model(&isos, &spins);
             tree.set_model(Some(&model));
         });
     }
