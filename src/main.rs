@@ -4,7 +4,8 @@ extern crate gio;
 use gtk::prelude::*;
 use gio::prelude::*;
 
-use gtk::{ApplicationWindow, Builder, Button, Label, ListStore, TreeView, TreeViewColumn, CellRendererText};
+use gtk::{ApplicationWindow, Builder, Button, Label,
+    ListStore, TreeView, TreeViewColumn, CellRendererText};
 
 use std::env::args;
 use std::collections::HashMap;
@@ -16,7 +17,9 @@ extern crate serde_json;
 extern crate serde_derive;
 
 use serde_json::Error;
+use serde::{de};
 
+// Get data
 #[derive(Serialize, Deserialize, Debug)]
 #[derive(Clone)]
 struct Isotope {  // Example: Hydrogen
@@ -38,17 +41,8 @@ struct Spin {
     thalf: String,  // "T1/2"
 }
 
-// DATA
-// You can make it with one function if you use generics!
-fn get_data_isotope() -> Result<Vec<Isotope>, Error> {
-    let data = include_str!("common_isotopes.min.json");
-    let v: Vec<Isotope> = serde_json::from_str(data)?;
-    Ok(v)
-}
-
-fn get_data_spin() -> Result<Vec<Spin>, Error> {
-    let data = include_str!("spins.json");
-    let v: Vec<Spin> = serde_json::from_str(data)?;
+fn serde_get<T: de::DeserializeOwned>(jsonstring: &str) -> Result<Vec<T>, Error> {
+    let v: Vec<T> = serde_json::from_str(jsonstring)?;
     Ok(v)
 }
 
@@ -87,7 +81,7 @@ fn append_column(tree: &TreeView, id: i32, title: &str) {
 
 fn get_button(symbol: &str, builder: &Builder) -> Button {
     builder
-        .get_object(&["button_", symbol].join(""))  // Is there a more elegant way?
+        .get_object(&["button_", symbol].join(""))
         .expect(&["Cannot find ", symbol].join(""))
 }
 
@@ -173,9 +167,16 @@ fn get_spins(
     }
 
 fn build_ui(application: &gtk::Application) {
-    let isotopes_data: Result<Vec<Isotope>, Error> = serde::export::Ok(get_data_isotope().unwrap());
-    let spin_data: Result<Vec<Spin>, Error> = serde::export::Ok(get_data_spin().unwrap());
-    let builder = Builder::from_string(include_str!("gelements.glade"));
+    // Get data
+    let isotopes_data: Result<Vec<Isotope>, Error> = serde::export::Ok(serde_get(
+        include_str!("common_isotopes.min.json")
+    ).unwrap());
+
+    let spin_data: Result<Vec<Spin>, Error> = serde::export::Ok(serde_get(
+        include_str!("spins.json")
+    ).unwrap());
+
+    let builder = Builder::from_string(include_str!("gotosi.glade"));
 
     // Widgets
     let win: ApplicationWindow =

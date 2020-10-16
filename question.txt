@@ -1,0 +1,68 @@
+I wrote a small program which uses two different but similar functions to get data from two JSON files through serde:
+
+```rust
+fn get_data_isotope() -> Result<Vec<Isotope>, Error> {
+    let data = include_str!("common_isotopes.min.json");
+    let v: Vec<Isotope> = serde_json::from_str(data)?;
+    Ok(v)
+}
+
+fn get_data_spin() -> Result<Vec<Spin>, Error> {
+    let data = include_str!("spins.json");
+    let v: Vec<Spin> = serde_json::from_str(data)?;
+    Ok(v)
+}
+```
+
+```
+let isotopes_data: Result<Vec<Isotope>, Error> = serde::export::Ok(get_data_isotope().unwrap());
+let spin_data: Result<Vec<Spin>, Error> = serde::export::Ok(get_data_spin().unwrap());
+```
+
+The only difference are:
+
+- The name of the file included in the string;
+- The type in the returned vector.
+
+I know that's not an elegant solution, but it works. Now, I want to make things right, so I remembered _generics_ from the documentation and I tried this:
+
+```rust
+fn serde_get(json_file: &str) -> Result<Vec<T>, Error> {
+    let data = include_str!(json_file);
+
+    if json_file.contains("spins") {
+        let v: Vec<Spin> = serde_json::from_str(data)?;
+    } else {
+        let v: Vec<Isotope> = serde_json::from_str(data)?;
+    }
+
+    Ok(v)
+}
+```
+
+```
+let isotopes_data: Result<Vec<Isotope>, Error> = serde::export::Ok(serde_get(Isotope, &"common_isotopes.min.json").unwrap());
+let spin_data: Result<Vec<Spin>, Error> = serde::export::Ok(serde_get(Spin, &"spins.json").unwrap());
+```
+
+That's not the best code either, but I thought it would work. It's not working and I don't understand why. This is (part of) the error:
+
+```none
+error[E0412]: cannot find type `T` in this scope
+   --> src/main.rs:176:49
+    |
+176 |     fn serde_get(json_file: &str) -> Result<Vec<T>, Error> {
+    |                 -                               ^ not found in this scope
+    |                 |
+    |                 help: you might be missing a type parameter: `<T>`
+
+error[E0425]: cannot find value `v` in this scope
+   --> src/main.rs:185:8
+    |
+185 |     Ok(v)
+    |        ^ not found in this scope
+
+...
+191 |   let spin_data: Result<Vec<Spin>, Error> = serde::export::Ok(serde_get(Spin, &"spins.json").unwrap());
+    |                                                                         ^^^^ did you mean `Spin { /* fields */ }`?
+```
