@@ -20,26 +20,30 @@ use serde_json::Error;
 use serde::{de};
 
 // Get data
-#[derive(Serialize, Deserialize, Debug)]
-#[derive(Clone)]
-struct Isotope {  // Example: Hydrogen
-    atomic_number: String,  // "1"
-    symbol: String,  // "H"
-    mass_number: String,  // "1"
-    relative_atomic_mass: String,  // "1.00782503223(9)"
-    isotopic_composition: Option<String>,  // "0.999885(70)"
-    standard_atomic_weight: String,  // "[1.00784,1.00811]"
-    // notes: String,  // "m"
+mod gotosi {
+    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Clone)]
+    pub struct Isotope {  // Example: Hydrogen
+        pub atomic_number: String,  // "1"
+        pub symbol: String,  // "H"
+        pub mass_number: String,  // "1"
+        pub relative_atomic_mass: String,  // "1.00782503223(9)"
+        pub isotopic_composition: Option<String>,  // "0.999885(70)"
+        pub standard_atomic_weight: String,  // "[1.00784,1.00811]"
+        // notes: String,  // "m"
+    }
+
+    #[derive(Serialize, Deserialize, Debug)]
+    #[derive(Clone)]
+    pub struct Spin {
+        pub nucleus: String,
+        pub elevel: String,  // "Elevel(keV)"
+        pub spin: String,
+        pub thalf: String,  // "T1/2"
+    }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[derive(Clone)]
-struct Spin {
-    nucleus: String,
-    elevel: String,  // "Elevel(keV)"
-    spin: String,
-    thalf: String,  // "T1/2"
-}
+use gotosi::{Isotope, Spin};
 
 fn serde_get<T: de::DeserializeOwned>(jsonstring: &str) -> Result<Vec<T>, Error> {
     let v: Vec<T> = serde_json::from_str(jsonstring)?;
@@ -140,7 +144,11 @@ fn get_spins(
         let mut spins: Vec<Spin> = Vec::new();
         // Get mass numbers
         for iso in my_isos.iter() {
-            let my_nucleus: String = [iso.mass_number.clone(), symbol.to_ascii_uppercase()].join("");
+            let my_nucleus: String = [
+                iso.mass_number.clone(),
+                symbol.to_ascii_uppercase()]
+                    .join("");
+
             let mut found = false;
 
             for i in spin_data.as_ref().unwrap().iter() {
@@ -169,14 +177,14 @@ fn get_spins(
 fn build_ui(application: &gtk::Application) {
     // Get data
     let isotopes_data: Result<Vec<Isotope>, Error> = serde::export::Ok(serde_get(
-        include_str!("common_isotopes.min.json")
+        include_str!("data/common_isotopes.min.json")
     ).unwrap());
 
     let spin_data: Result<Vec<Spin>, Error> = serde::export::Ok(serde_get(
-        include_str!("spins.json")
+        include_str!("data/spins.json")
     ).unwrap());
 
-    let builder = Builder::from_string(include_str!("gotosi.glade"));
+    let builder = Builder::from_string(include_str!("ui/gotosi.glade"));
 
     // Widgets
     let win: ApplicationWindow =
@@ -184,7 +192,7 @@ fn build_ui(application: &gtk::Application) {
             .get_object("application_window")
             .expect("Can't build win from Glade");
 
-    win.set_title("gElements");
+    win.set_title("GOTOSI");
     win.set_application(Some(application));
 
     // Static UI elements
